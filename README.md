@@ -1,6 +1,6 @@
 # Chairon
 
-Chairon (Chai-ron) is a little library I made for making bots in the new Geometry Dash 2.209 update.
+Chairon (pronounced Chai-ron) is a little library I made for making bots in the new Geometry Dash 2.209 update.
 
 The API is modelled on [Eris](https://github.com/abalabahaha/eris) so the structure feels familiar.
 

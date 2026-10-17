@@ -1,12 +1,20 @@
 {
   "name": "chairon",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "An Eris styled library for building Geometry Dash bots.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
     "dist"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aurivynn/chairon.git"
+  },
+  "bugs": {
+    "url": "https://github.com/aurivynn/chairon/issues"
+  },
+  "homepage": "https://github.com/aurivynn/chairon",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rimraf dist",
