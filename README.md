@@ -27,6 +27,11 @@ bot.on("friendRequestCreate", async (req) => {
   await req.accept();
 });
 
+bot.on("threadInviteCreate", async (invite) => {
+  console.log(`invited to "${invite.name}" by ${invite.inviterName}`);
+  await invite.accept();
+});
+
 bot.connect();
 ```
 
@@ -47,8 +52,10 @@ new Chairon(username, password, options?)
 | Option               | Default | Meaning                                                                                           |
 | -------------------- | ------- | ------------------------------------------------------------------------------------------------- |
 | `threadPollInterval` | `2`     | Seconds between polls of thread list                                                              |
-| `friendPollInterval` | `10`    | Seconds between friend request checks                                                             |
+| `friendPollInterval` | `10`    | Seconds between friend request and group DM invite checks                                         |
 | `autoAcceptFriends`  | `false` | Accept incoming friend requests automatically. It is preferred you use the event instead of this. |
+| `autoAcceptInvites`  | `false` | Accept group DM invites automatically. It is preferred you use the event instead of this.         |
+| `autoLeaveRemoved`   | `false` | Leave groups the bot has been removed from automatically                                          |
 | `verbose`            | `false` | Log every poll to stderr                                                                          |
 
 ## Events
@@ -76,9 +83,13 @@ interface Thread {
   subject: string;
   /** Group DM description. Empty for dms. */
   description: string;
-  /** True when the thread has more than two participants. */
+  /** True for group DMs. */
   isGroup: boolean;
   memberIds: number[];
+  /** True when the bot has been removed from this group. */
+  removed: boolean;
+  /** Number of unread messages. */
+  unreadCount: number;
 }
 
 interface User {
@@ -131,14 +142,58 @@ bot.on("friendRequestCreate", async (req) => {
 });
 ```
 
+### `threadInviteCreate`
+
+Fired for each pending group DM invite.
+
+```js
+bot.on("threadInviteCreate", async (invite) => {
+  console.log(
+    `"${invite.name}" from ${invite.inviterName} (${invite.inviterId})`,
+  );
+  await invite.accept();
+});
+```
+
+```ts
+interface ThreadInvite {
+  /** Thread the invite is for. */
+  threadId: number;
+  inviterId: number;
+  inviterName: string;
+  /** The group name. */
+  name: string;
+  /** Group description. */
+  description: string;
+  accept(): Promise<boolean>; // true when the server took it
+  decline(): Promise<boolean>; // true when the server took it
+}
+```
+
+## Group DMs
+
+Group DMs work the same as DMs, with some differences worth knowing.
+
+**`author` is `null`.** The server reports sender `0` for group messages, so there is no author to attribute them to.
+
+```js
+bot.on("messageCreate", async (msg) => {
+  if (msg.thread.removed) return; // you cannot post here
+  // ...
+});
+```
+
+Set `autoLeaveRemoved: true` to have chairon leave those groups itself, otherwise they get polled forever.
+
 ## Methods
 
-| Method                                             | Returns                   |
-| -------------------------------------------------- | ------------------------- |
-| `bot.createMessage(threadId, content)`             | new message id, or `null` |
-| `bot.sendDirectMessage(userId, content, subject?)` | new message id, or `null` |
-| `bot.getThreads()`                                 | `Thread[]`                |
-| `bot.destroy()`                                    | nothing                   |
+| Method                                             | Returns                      |
+| -------------------------------------------------- | ---------------------------- |
+| `bot.createMessage(threadId, content)`             | new message id, or `null`    |
+| `bot.sendDirectMessage(userId, content, subject?)` | new message id, or `null`    |
+| `bot.getThreads()`                                 | `Thread[]`                   |
+| `bot.leaveGroup(threadId)`                         | true when the server took it |
+| `bot.destroy()`                                    | nothing                      |
 
 Properties: `bot.username`, `bot.accountId`, `bot.playerId`
 
@@ -161,3 +216,16 @@ bot.on("friendRequestCreate", async (req) => {
 ```
 
 It is preferred you use the event instead of autoAcceptFriends
+
+## Group DM invites
+
+Same pattern as friend requests:
+
+```js
+const bot = new Chairon(user, pass, { autoAcceptInvites: true });
+
+// or, recommended:
+bot.on("threadInviteCreate", async (invite) => {
+  await invite.accept();
+});
+```

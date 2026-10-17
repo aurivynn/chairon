@@ -10,7 +10,7 @@ import {
   SECRET,
 } from "./constants";
 import { HTTPError, LoginError } from "./errors";
-import type { FriendRequest, Thread } from "./structures";
+import type { FriendRequest, Thread, ThreadInvite } from "./structures";
 
 export interface RawMessage {
   id: number;
@@ -155,9 +155,7 @@ export class ChaironClient {
       const id = Number(parts[0]);
       if (!Number.isFinite(id) || id <= 0) continue;
 
-      // Field 7 is the participant count: 2 for a DM, more for a group
-      const participants = Number(parts[7]);
-      const isGroup = Number.isFinite(participants) && participants > 2;
+      const isGroup = Number(parts[1]) === 0;
 
       const subject = isGroup ? decode(parts[3] ?? "") : decode(parts[2] ?? "");
       const description = isGroup ? decode(parts[21] ?? "") : "";
@@ -169,6 +167,8 @@ export class ChaironClient {
         isGroup,
         memberIds: [],
         unreadCount: Number(parts[4]) || 0,
+        // status code, not a boolean. 8 means removed from the group
+        removed: parts[25] === "8",
       });
     }
     return threads;
@@ -256,7 +256,7 @@ export class ChaironClient {
         id: threadId,
         subject,
         description,
-        isGroup: memberIds.length > 0,
+        isGroup: undefined,
         memberIds,
         unreadCount: 0,
       },
@@ -314,7 +314,66 @@ export class ChaironClient {
     return name && !/^-?\d+$/.test(name) ? name : `user${userId}`;
   }
 
-  // Pending friend requests, each with accept() / decline() attached so callers never have to track a requestId themselves.
+  /**
+   * Pending group DM invites
+   *
+   * Fields: 0 threadId  1 inviterId  2 inviterName(b64)  3 name(b64)  8 desc(b64)
+   */
+  async listThreadInvites(): Promise<ThreadInvite[]> {
+    const raw = await ChaironClient.request(
+      "getGJThreadInvites.php",
+      this.auth({}),
+    );
+
+    const block = head(raw);
+    if (!block || block === "none" || block.startsWith("-")) return [];
+
+    const parts = block.split(":");
+    const threadId = Number(parts[0]);
+    const inviterId = Number(parts[1]);
+
+    const invite: ThreadInvite = {
+      threadId,
+      inviterId: Number.isFinite(inviterId) ? inviterId : 0,
+      inviterName: decode(parts[2] ?? ""),
+      name: decode(parts[3] ?? ""),
+      description: decode(parts[8] ?? ""),
+      accept: () => this.acceptThreadInvite(threadId),
+      decline: () => this.declineThreadInvite(threadId),
+    };
+
+    return Number.isFinite(threadId) && threadId > 0 ? [invite] : [];
+  }
+
+  /** Join a group DM. Returns true when the server accepted. */
+  async acceptThreadInvite(threadId: number): Promise<boolean> {
+    const raw = await ChaironClient.request(
+      "updateGJThread.php",
+      this.auth({ threadID: String(threadId), mode: "8" }),
+    );
+    return raw.trim() === "1";
+  }
+
+  /**
+   * Decline ("ignore") a group DM invite. Returns true when the server accepted.
+   */
+  async declineThreadInvite(threadId: number): Promise<boolean> {
+    const raw = await ChaironClient.request(
+      "updateGJThread.php",
+      this.auth({ threadID: String(threadId), mode: "9" }),
+    );
+    return raw.trim() === "1";
+  }
+
+  /** Leave a group DM. Returns true when the server accepted. */
+  async leaveGroup(threadId: number): Promise<boolean> {
+    const raw = await ChaironClient.request(
+      "updateGJThread.php",
+      this.auth({ threadID: String(threadId), mode: "18" }),
+    );
+    return raw.trim() === "1";
+  }
+
   async listFriendRequests(): Promise<FriendRequest[]> {
     const raw = await ChaironClient.request(
       "getGJFriendRequests20.php",
@@ -385,4 +444,5 @@ const emptyThread = (id: number): Thread => ({
   isGroup: false,
   memberIds: [],
   unreadCount: 0,
+  removed: false,
 });

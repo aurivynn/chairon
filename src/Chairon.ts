@@ -2,12 +2,20 @@ import { EventEmitter } from "node:events";
 
 import { ChaironClient } from "./client";
 import type { RawMessage } from "./client";
-import type { FriendRequest, Message, Options, Thread } from "./structures";
+import type {
+  FriendRequest,
+  Message,
+  Options,
+  Thread,
+  ThreadInvite,
+} from "./structures";
 
 const DEFAULTS = {
   threadPollInterval: 2,
   friendPollInterval: 10,
   autoAcceptFriends: false,
+  autoAcceptInvites: false,
+  autoLeaveRemoved: false,
   verbose: false,
 };
 
@@ -19,6 +27,7 @@ export interface ChaironEvents {
   messageCreate: [message: Message];
   error: [error: Error];
   friendRequestCreate: [request: FriendRequest];
+  threadInviteCreate: [invite: ThreadInvite];
 }
 
 export class Chairon extends EventEmitter {
@@ -28,6 +37,7 @@ export class Chairon extends EventEmitter {
   private cursors = new Map<number, number>();
   private usernames = new Map<number, string>();
   private announcedFriends = new Set<number>();
+  private announcedInvites = new Set<number>();
 
   private threads = new Map<number, Thread>();
   private running = false;
@@ -135,12 +145,34 @@ export class Chairon extends EventEmitter {
     if (now - this.lastFriendCheck >= this.options.friendPollInterval * 1000) {
       this.lastFriendCheck = now;
       await this.handleFriendRequests();
+      await this.handleThreadInvites();
     }
 
     const listed = await client.listThreads();
 
     for (const thread of listed) {
       const known = this.threads.get(thread.id);
+
+      // geometry dash keeps threads you were removed from in the list, so they need clearing explicitly or they get polled forever.
+      if (thread.removed) {
+        if (this.threads.has(thread.id)) {
+          this.threads.delete(thread.id);
+          this.log(`dropped thread ${thread.id}: removed from group`);
+        }
+        if (this.options.autoLeaveRemoved) {
+          try {
+            await client.leaveGroup(thread.id);
+            this.log(`left removed group ${thread.id}`);
+          } catch (err) {
+            this.emit(
+              "error",
+              err instanceof Error ? err : new Error(String(err)),
+            );
+          }
+        }
+        continue;
+      }
+
       if (!known) {
         this.log(`new thread ${thread.id} (${thread.subject})`);
         this.threads.set(thread.id, thread);
@@ -161,6 +193,30 @@ export class Chairon extends EventEmitter {
       }
 
       await this.pollThread(thread.id);
+    }
+  }
+
+  private async handleThreadInvites(): Promise<void> {
+    const client = this.require();
+
+    for (const invite of await client.listThreadInvites()) {
+      if (this.announcedInvites.has(invite.threadId)) continue;
+      this.announcedInvites.add(invite.threadId);
+
+      if (this.options.autoAcceptInvites) {
+        if (await invite.accept()) {
+          this.log(`accepted invite to "${invite.name}"`);
+        } else {
+          this.announcedInvites.delete(invite.threadId);
+          this.emit(
+            "error",
+            new Error(`Could not accept invite to "${invite.name}".`),
+          );
+          continue;
+        }
+      }
+
+      this.emit("threadInviteCreate", invite);
     }
   }
 
