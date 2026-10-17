@@ -1,0 +1,33 @@
+{
+  "name": "chairon",
+  "version": "0.0.1",
+  "description": "An Eris styled library for building Geometry Dash bots.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rimraf dist",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "keywords": [
+    "geometry-dash",
+    "gd",
+    "bot",
+    "chairon",
+    "eris"
+  ],
+  "author": "aurivynn",
+  "license": "AGPL-3.0-only",
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.2"
+  }
+}
