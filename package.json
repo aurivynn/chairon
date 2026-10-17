@@ -1,6 +1,6 @@
 {
   "name": "chairon",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "An Eris styled library for building Geometry Dash bots.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
