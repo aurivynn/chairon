@@ -4,6 +4,8 @@ Chairon (pronounced Chai-ron) is a little library I made for making bots in the 
 
 The API is modelled on [Eris](https://github.com/abalabahaha/eris) so the structure feels familiar.
 
+<img width="816" height="283" alt="image" src="https://github.com/user-attachments/assets/0036a6c1-89f4-47b4-bfe8-6b3aaba935a1" />
+
 ```js
 const { Chairon } = require("chairon");
 
