@@ -56,6 +56,48 @@ export class Chairon extends EventEmitter {
     this.options = { ...DEFAULTS, ...options };
   }
 
+  override on<E extends keyof ChaironEvents>(
+    event: E,
+    listener: (...args: ChaironEvents[E]) => void,
+  ): this {
+    return super.on(event, listener);
+  }
+
+  override once<E extends keyof ChaironEvents>(
+    event: E,
+    listener: (...args: ChaironEvents[E]) => void,
+  ): this {
+    return super.once(event, listener);
+  }
+
+  override off<E extends keyof ChaironEvents>(
+    event: E,
+    listener: (...args: ChaironEvents[E]) => void,
+  ): this {
+    return super.off(event, listener);
+  }
+
+  override addListener<E extends keyof ChaironEvents>(
+    event: E,
+    listener: (...args: ChaironEvents[E]) => void,
+  ): this {
+    return super.addListener(event, listener);
+  }
+
+  override removeListener<E extends keyof ChaironEvents>(
+    event: E,
+    listener: (...args: ChaironEvents[E]) => void,
+  ): this {
+    return super.removeListener(event, listener);
+  }
+
+  override emit<E extends keyof ChaironEvents>(
+    event: E,
+    ...args: ChaironEvents[E]
+  ): boolean {
+    return super.emit(event, ...args);
+  }
+
   get accountId(): number {
     return this.require().accountId;
   }

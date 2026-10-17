@@ -62,6 +62,24 @@ new Chairon(username, password, options?)
 
 ## Events
 
+Event names and payloads are typed.
+
+```ts
+bot.on("messageCreate", (msg) => {
+  console.log(msg.content); // msg is a Message
+});
+
+bot.on("notAnEvent", () => {}); // type error
+```
+
+| Event                 | Payload         |
+| --------------------- | --------------- |
+| `ready`               | none            |
+| `messageCreate`       | `Message`       |
+| `error`               | `Error`         |
+| `friendRequestCreate` | `FriendRequest` |
+| `threadInviteCreate`  | `ThreadInvite`  |
+
 ### `ready`
 
 Fired once logged in and the initial thread list has loaded.
